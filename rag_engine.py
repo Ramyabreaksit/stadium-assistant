@@ -5,25 +5,37 @@ from chromadb.config import Settings
 from chromadb.utils import embedding_functions
 from knowledge_base.ingest import load_all_faq_documents
 
-COLLECTION_NAME = "stadium_faq_collection"
+COLLECTION_NAME = "stadium_faq_gemini_collection"
 
-class MultilingualEmbeddingFunction(chromadb.EmbeddingFunction):
-    """Custom embedding wrapper around SentenceTransformers to ensure cross-lingual matching."""
-    def __init__(self, model_name: str = "paraphrase-multilingual-MiniLM-L12-v2"):
-        try:
-            from sentence_transformers import SentenceTransformer
-            self.model = SentenceTransformer(model_name)
-            self._model_loaded = True
-        except Exception as e:
-            print(f"Warning: Could not load {model_name} via sentence_transformers ({e}). Falling back to ChromaDB default embedding.")
-            self._model_loaded = False
-            self.fallback_ef = embedding_functions.DefaultEmbeddingFunction()
+class GeminiEmbeddingFunction(chromadb.EmbeddingFunction):
+    """Embedding wrapper around Google Gemini API (gemini-embedding-001) via google-genai SDK."""
+    def __init__(self, model_name: str = "gemini-embedding-001", api_key: Optional[str] = None):
+        self.model_name = model_name
+        self.api_key = api_key or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+        self.fallback_ef = embedding_functions.DefaultEmbeddingFunction()
 
     def __call__(self, input: List[str]) -> List[List[float]]:
-        if self._model_loaded:
-            embeddings = self.model.encode(input, convert_to_numpy=True)
-            return embeddings.tolist()
-        else:
+        api_key = self.api_key or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+        if not api_key:
+            return self.fallback_ef(input)
+        
+        try:
+            from google import genai
+            client = genai.Client(api_key=api_key)
+            
+            embeddings = []
+            for text in input:
+                resp = client.models.embed_content(
+                    model=self.model_name,
+                    contents=text
+                )
+                if resp and resp.embeddings and len(resp.embeddings) > 0:
+                    embeddings.append(resp.embeddings[0].values)
+                else:
+                    embeddings.append(self.fallback_ef([text])[0])
+            return embeddings
+        except Exception as e:
+            print(f"Warning: Gemini embedding error ({e}). Falling back to DefaultEmbeddingFunction.")
             return self.fallback_ef(input)
 
 class StadiumRAG:
@@ -37,14 +49,14 @@ class StadiumRAG:
             settings=Settings(anonymized_telemetry=False)
         )
         
-        # Initialize multilingual embedding function for accurate cross-lingual retrieval
-        self.embedding_function = MultilingualEmbeddingFunction()
+        # Initialize Gemini embedding function (lightweight, no local torch/transformers required)
+        self.embedding_function = GeminiEmbeddingFunction()
         
         # Get or create collection
         self.collection = self.client.get_or_create_collection(
             name=COLLECTION_NAME,
             embedding_function=self.embedding_function,
-            metadata={"description": "Multilingual FIFA World Cup 2026 Stadium Knowledge Base"}
+            metadata={"description": "Multilingual FIFA World Cup 2026 Stadium Knowledge Base (Gemini Embeddings)"}
         )
         
         # Auto-ingest if empty or forced
@@ -61,7 +73,7 @@ class StadiumRAG:
         self.collection = self.client.get_or_create_collection(
             name=COLLECTION_NAME,
             embedding_function=self.embedding_function,
-            metadata={"description": "Multilingual FIFA World Cup 2026 Stadium Knowledge Base"}
+            metadata={"description": "Multilingual FIFA World Cup 2026 Stadium Knowledge Base (Gemini Embeddings)"}
         )
         
         docs = load_all_faq_documents()
