@@ -1,0 +1,35 @@
+# Secrets & Environment Variables
+.env
+.env.*
+*.key
+*.pem
+secrets.toml
+
+# Virtual Environment & Python Cache
+venv/
+env/
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyd
+.Python
+
+# ChromaDB Local Vector Databases
+chroma_db_data/
+test_chroma_db/
+*.sqlite3
+*.db
+
+# HuggingFace & Transformers Cache
+.cache/
+hf_cache/
+
+# Streamlit Local Configurations
+.streamlit/secrets.toml
+
+# IDE & OS Files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

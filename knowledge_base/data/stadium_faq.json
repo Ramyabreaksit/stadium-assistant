@@ -1,0 +1,156 @@
+[
+  {
+    "id": "nynj_gates_01",
+    "stadium": "New York / New Jersey Stadium (MetLife)",
+    "category": "gates",
+    "question": "Where are the main entry gates at New York / New Jersey Stadium (MetLife Stadium) and what time do they open?",
+    "answer": "New York / New Jersey Stadium (MetLife Stadium in East Rutherford, NJ) has five main entry gates: MetLife Gate (West), Verizon Gate (Northwest), Pepsi Gate (Northeast), HCLTech Gate (East), and SAP Gate (South). For FIFA World Cup 2026 matches, stadium gates open exactly 3 hours prior to kickoff. Fans are strongly advised to arrive at least 2 hours before match time to clear security and biometric ticketing check."
+  },
+  {
+    "id": "nynj_transport_01",
+    "stadium": "New York / New Jersey Stadium (MetLife)",
+    "category": "transport",
+    "question": "How do I get to New York / New Jersey Stadium by public transit, train, or bus?",
+    "answer": "The easiest public transit option to New York / New Jersey Stadium is the NJ TRANSIT rail service. Take a train from New York Penn Station or Newark Penn Station to Secaucus Junction, then transfer to the Meadowlands Rail Line which drops you right at the stadium entrance. Direct express buses (Coach USA / 351 Meadowlands Express) also depart from Port Authority Bus Terminal in Manhattan starting 3.5 hours before kickoff. Parking requires a pre-purchased FIFA vehicle pass; no on-site cash parking is permitted on match days."
+  },
+  {
+    "id": "nynj_seating_01",
+    "stadium": "New York / New Jersey Stadium (MetLife)",
+    "category": "seating",
+    "question": "What are the seating levels and accessibility accommodations at New York / New Jersey Stadium?",
+    "answer": "The stadium features three main concourse levels: the 100-Level (Lower Bowl, rows 1-45), the 200-Level (Mezzanine & Club Suites, rows 1-25), and the 300-Level (Upper Bowl, rows 1-26). Wheelchair accessible seating and companion seats are available on all three concourse levels. Elevators are located near the MetLife Gate, Verizon Gate, Pepsi Gate, and SAP Gate. Sensory decompression bags and a quiet sensory room are available at Guest Services near Section 124."
+  },
+  {
+    "id": "nynj_food_01",
+    "stadium": "New York / New Jersey Stadium (MetLife)",
+    "category": "food",
+    "question": "Where can I find Halal, Kosher, Vegan, or vegetarian food and concessions at New York / New Jersey Stadium?",
+    "answer": "Halal certified food stalls (including gyro and chicken over rice) are located on the Lower Concourse near Section 118 and Upper Concourse near Section 323. Kosher concessions are available near Section 112 and Section 140 (closed on Saturdays). Vegan and plant-based burgers, falafel, and gluten-free options can be found at the 'Non-GMO & Plant Power' stands near Section 126 and Section 234. Water bottle refill stations are located outside restrooms on all three levels."
+  },
+  {
+    "id": "nynj_restrooms_01",
+    "stadium": "New York / New Jersey Stadium (MetLife)",
+    "category": "restrooms",
+    "question": "Where are the restrooms and family nursing stations located at New York / New Jersey Stadium?",
+    "answer": "Men's, women's, and all-gender family restrooms are distributed every 3-4 sections along all concourse levels (100, 200, and 300 levels). Dedicated nursing and lactation pods (Mamava pods) for parents with infants are situated near Section 117 on the Plaza Level and Section 225 on the Mezzanine Level."
+  },
+  {
+    "id": "nynj_exits_01",
+    "stadium": "New York / New Jersey Stadium (MetLife)",
+    "category": "exits",
+    "question": "Where are the emergency exits and medical first aid stations located at New York / New Jersey Stadium?",
+    "answer": "Emergency exits are marked by illuminated green and white signs above all concourse tunnels and stairwells leading to the exterior plaza. First Aid medical stations staffed by doctors and paramedics are located on the Lower Concourse near Section 103 and Section 128, on the Club Level near Section 208, and on the Upper Concourse near Section 312."
+  },
+  {
+    "id": "azteca_gates_01",
+    "stadium": "Estadio Azteca (Mexico City)",
+    "category": "gates",
+    "question": "Where are the entrance gates at Estadio Azteca in Mexico City and when do they open?",
+    "answer": "Estadio Azteca (located in Santa Úrsula, Mexico City) has 10 primary entrance gates numbered Puerta 1 through Puerta 10 along Calzada de Tlalpan and Circuito Estadio Azteca. Puerta 1 and Puerta 2 are dedicated to VIP and Palcos guests, while Puerta 3 through Puerta 8 serve general admission (Plateas, Especial Bajo, and Alto). Gates open exactly 3.5 hours before kickoff for all FIFA World Cup 2026 matches, including the opening ceremony."
+  },
+  {
+    "id": "azteca_transport_01",
+    "stadium": "Estadio Azteca (Mexico City)",
+    "category": "transport",
+    "question": "What is the best way to travel to Estadio Azteca using public transit or metro?",
+    "answer": "The most reliable and fastest public transport to Estadio Azteca is the Tren Ligero (Light Rail). Take the Mexico City Metro Line 2 (Blue Line) to the southern terminus at Metro Tasqueña, then transfer to the Tren Ligero and disembark at the 'Estadio Azteca' station right in front of the stadium plaza. Official World Cup shuttle buses also operate from Polanco, Paseo de la Reforma, and Coyoacán directly to the stadium transport hub."
+  },
+  {
+    "id": "azteca_seating_01",
+    "stadium": "Estadio Azteca (Mexico City)",
+    "category": "seating",
+    "question": "How is the seating layout organized at Estadio Azteca?",
+    "answer": "Estadio Azteca is divided into several iconic tiers: 100s (Especial Bajo - closest to the pitch), 200s and 300s (Plateas and Palcos private suites), and 400s/500s/600s (Especial Alto and General Upper Bowl). Ramps provide access between levels. Accessible wheelchair zones are located in the Especial Bajo sections near Puerta 3 and Puerta 7, with dedicated elevators from the main plaza entrance."
+  },
+  {
+    "id": "azteca_food_01",
+    "stadium": "Estadio Azteca (Mexico City)",
+    "category": "food",
+    "question": "What traditional Mexican, vegetarian, and international food options are available inside Estadio Azteca?",
+    "answer": "Estadio Azteca offers renowned authentic Mexican culinary options including Tacos al Pastor, Esquites, Torta Ahogada, and fresh churros at concessions throughout the 100, 300, and 500 levels. Vegetarian tacos (nopal and grilled mushroom), vegan bowl options, and Halal/vegetarian snacks are available at the 'Sabor Internacional' kiosks near Puerta 3 (Section 104) and Section 318. Drinking water fountains are located near main restroom clusters."
+  },
+  {
+    "id": "azteca_restrooms_01",
+    "stadium": "Estadio Azteca (Mexico City)",
+    "category": "restrooms",
+    "question": "Where are the restrooms and baby changing facilities located at Estadio Azteca?",
+    "answer": "Restrooms are located along the ring corridors of every seating tier. Modernized restrooms for FIFA World Cup 2026 feature touchless fixtures and baby changing tables in both men's and women's facilities near Gate 4, Gate 6, and along the 300-level corridor."
+  },
+  {
+    "id": "azteca_exits_01",
+    "stadium": "Estadio Azteca (Mexico City)",
+    "category": "exits",
+    "question": "Where are the emergency exits and medical relief centers at Estadio Azteca?",
+    "answer": "In case of emergency, wide pedestrian ramps (Rampas de Acceso y Salida) lead directly from the upper tiers down to the wide exterior perimeter on Calzada de Tlalpan. Cruz Roja (Red Cross) medical first aid clinics are located on the ground floor near Puerta 3 and Puerta 8, and on the upper concourse near Section 502."
+  },
+  {
+    "id": "la_gates_01",
+    "stadium": "Los Angeles Stadium (SoFi)",
+    "category": "gates",
+    "question": "What are the entry gates and security screening hours at Los Angeles Stadium (SoFi Stadium)?",
+    "answer": "Los Angeles Stadium (SoFi Stadium in Inglewood, CA) features 12 primary entry gates surrounding the open-air canopy plaza: Entry 1 through Entry 12. Entry 1, 4, 7, and 10 are the main pedestrian gates with the largest security checkpoints. Gates open 3 hours prior to kickoff. All fans must pass through Evolv touchless security scanners; keep phones and keys in your pocket during screening unless instructed otherwise."
+  },
+  {
+    "id": "la_transport_01",
+    "stadium": "Los Angeles Stadium (SoFi)",
+    "category": "transport",
+    "question": "How do I get to Los Angeles Stadium (SoFi) via LA Metro, shuttle bus, or ride-share?",
+    "answer": "To reach Los Angeles Stadium by public transit, take the LA Metro C Line (Green) or K Line (Pink) to either the Hawthorne/Lennox Station or Downtown Inglewood Station. From these stations, free official FIFA express shuttle buses run continuously to the stadium drop-off zone starting 4 hours before kickoff. Ride-share services (Uber/Lyft) have a designated pick-up and drop-off zone located in the Pink Zone parking lot on Prairie Avenue."
+  },
+  {
+    "id": "la_seating_01",
+    "stadium": "Los Angeles Stadium (SoFi)",
+    "category": "seating",
+    "question": "What are the seating levels and Infinity Screen features at Los Angeles Stadium?",
+    "answer": "Seating is organized into five distinct levels: VIP Field/VIP Club (Level 1), 200-Level Club (Level 2), 300-Level Suite (Level 3), 400-Level Reserved (Level 4), and 500-Level Upper Concourse (Level 5). The stadium features the dual-sided 360-degree 4K Infinity Screen suspended above the pitch so fans on every level have an unobstructed, crystal-clear view of replays and live stats. Elevators and escalators connect all five concourse levels."
+  },
+  {
+    "id": "la_food_01",
+    "stadium": "Los Angeles Stadium (SoFi)",
+    "category": "food",
+    "question": "Where can I find plant-based, gluten-free, halal, and local food concepts at Los Angeles Stadium?",
+    "answer": "Concessions at SoFi Stadium reflect diverse LA cuisine curated by local chefs across four dining neighborhoods: Olvera Street (Mexican), Fairfax Avenue (Burgers/Deli), San Vicente Boulevard (Mediterranean/Pizza), and Sawtelle Boulevard (Asian Fusion). Dedicated Halal bowls, vegan carnitas tacos, and gluten-free flatbreads can be found at the Fairfax and San Vicente concession stands on Level 2 (Section 215) and Level 4 (Section 410)."
+  },
+  {
+    "id": "la_restrooms_01",
+    "stadium": "Los Angeles Stadium (SoFi)",
+    "category": "restrooms",
+    "question": "Where are family restrooms and sensory quiet rooms located at Los Angeles Stadium?",
+    "answer": "All-gender family restrooms are available on every concourse level right next to standard restroom banks. A dedicated Sensory Quiet Room equipped with soothing lights and noise-canceling headphones is situated on Level 4 near Section 402 for guests with autism or sensory sensitivities."
+  },
+  {
+    "id": "la_exits_01",
+    "stadium": "Los Angeles Stadium (SoFi)",
+    "category": "exits",
+    "question": "Where are first aid locations and emergency assembly areas at Los Angeles Stadium?",
+    "answer": "First Aid medical stations are located on Level 1 near Section 112, Level 2 near Section 226, Level 4 near Section 416, and Level 5 near Section 524. Emergency evacuation routes lead directly out of all 12 entries into the open American Airlines Plaza and Lake Park assembly grounds."
+  },
+  {
+    "id": "rules_bags_01",
+    "stadium": "General Tournament Rules & Policies",
+    "category": "rules",
+    "question": "What is the official FIFA World Cup 2026 bag policy and backpack restriction for all stadiums?",
+    "answer": "To guarantee swift security entry across all FIFA World Cup 2026 stadiums in the USA, Mexico, and Canada, strict clear bag rules apply: Only clear plastic, vinyl, or PVC bags not exceeding 12\" x 6\" x 12\" (30cm x 15cm x 30cm) or official 1-gallon clear plastic freezer bags are permitted. Fans may also carry one small non-clear clutch bag or wallet not exceeding 4.5\" x 6.5\" (11.4cm x 16.5cm). Backpacks, luggage, briefcases, coolers, and large totes are strictly prohibited. Exceptions are made for medically necessary items after special screening at designated accessible gates."
+  },
+  {
+    "id": "rules_prohibited_01",
+    "stadium": "General Tournament Rules & Policies",
+    "category": "rules",
+    "question": "What items are prohibited from being brought into FIFA World Cup 2026 stadiums?",
+    "answer": "The following items are strictly banned inside all FIFA World Cup 2026 stadiums: weapons, fireworks, flares, smoke bombs, laser pointers, drones, umbrellas, poles/sticks, professional cameras with lenses longer than 6 inches, video recording equipment, tripods, outside alcoholic beverages, glass bottles or cans, and horns/vuvuzelas/megaphones exceeding 100 decibels. Flags and banners are allowed if they are smaller than 3ft x 5ft, made of flame-retardant material, and do not contain commercial, political, or offensive messaging."
+  },
+  {
+    "id": "rules_tickets_01",
+    "stadium": "General Tournament Rules & Policies",
+    "category": "rules",
+    "question": "How do digital tickets and re-entry rules work for FIFA World Cup 2026?",
+    "answer": "All tickets for FIFA World Cup 2026 are 100% digital and must be accessed via the official FIFA Tickets mobile app on iOS or Android. Screenshots, PDF printouts, and email confirmations will NOT be accepted at stadium turnstiles. Re-entry into the stadium is strictly prohibited: once a ticketed guest exits through any turnstile or perimeter gate, they will not be permitted to re-enter the stadium under any circumstances."
+  },
+  {
+    "id": "rules_accessibility_01",
+    "stadium": "General Tournament Rules & Policies",
+    "category": "rules",
+    "question": "What accessibility services and mobility assistance are provided across all FIFA World Cup 2026 stadiums?",
+    "answer": "All World Cup venues offer comprehensive accessibility accommodations including dedicated wheelchair spaces, companion seating, assistive listening devices, audio description commentary headsets (available at Guest Services), and mobility shuttle assistance from parking/transit plazas to stadium gates. Service animals that are trained to perform a task for guests with disabilities are permitted in all public areas."
+  }
+]
