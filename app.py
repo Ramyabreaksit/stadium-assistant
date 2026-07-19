@@ -3,15 +3,14 @@ import time
 from typing import Tuple, List, Dict, Any, Optional
 import streamlit as st
 from dotenv import load_dotenv
+from utils import setup_logging, verify_requirements_versions
 
-# Load environment variables from .env if present
+logger = setup_logging(__name__)
 load_dotenv()
 
-# Import local engines
 from rag_engine import get_rag_engine, StadiumRAG
 from gemini_helper import GeminiHelper
 
-# Configure Streamlit page settings
 st.set_page_config(
     page_title="⚽ Stadium Assistant | FIFA World Cup 2026",
     page_icon="⚽",
@@ -28,12 +27,54 @@ def load_css() -> None:
             with open(css_path, "r", encoding="utf-8") as f:
                 st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
         except Exception as e:
+            logger.error("Error loading CSS stylesheet: %s", e)
             st.error(f"Error loading CSS stylesheet: {e}")
+
+
+def render_grounding_sources(chunks: List[Dict[str, Any]]) -> None:
+    """Render expandable UI element displaying retrieved ChromaDB citations and match scores.
+
+    Args:
+        chunks (List[Dict[str, Any]]): Retrieved context dictionary results.
+    """
+    if not chunks or len(chunks) == 0:
+        return
+    with st.expander(f"🔍 Grounding Sources & ChromaDB Retrieval ({len(chunks)} citations)", expanded=False):
+        for idx, chunk in enumerate(chunks, 1):
+            meta = chunk.get("metadata", {})
+            stadium_name = meta.get("stadium", "General")
+            cat = str(meta.get("category", "info")).upper()
+            relevance = chunk.get("relevance", 0.0)
+            text = chunk.get("text", "")
+            
+            st.markdown(f"""
+            <div class="source-card" role="article" aria-label="Citation Source {idx}">
+                <div class="source-header">
+                    <span>📌 Source {idx}: {stadium_name} — {cat}</span>
+                    <span class="relevance-pill">Match: {relevance}%</span>
+                </div>
+                <div>{text}</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+
+def build_conversation_history(messages: List[Dict[str, Any]]) -> List[Dict[str, str]]:
+    """Format session state messages for Gemini prompt context.
+
+    Args:
+        messages (List[Dict[str, Any]]): Raw session state message list.
+
+    Returns:
+        List[Dict[str, str]]: Cleaned list of `role` and `content` dictionaries.
+    """
+    return [
+        {"role": str(m["role"]), "content": str(m["content"])}
+        for m in messages
+    ]
 
 
 load_css()
 
-# Initialize session state for chat messages and trigger queries
 if "messages" not in st.session_state:
     st.session_state.messages = [
         {
@@ -52,11 +93,12 @@ if "quick_query_trigger" not in st.session_state:
 
 @st.cache_resource(show_spinner=False)
 def init_backend() -> Tuple[StadiumRAG, GeminiHelper]:
-    """Initialize and cache backend instances (`StadiumRAG` and `GeminiHelper`).
+    """Initialize and cache backend instances (`StadiumRAG` and `GeminiHelper`) and verify requirements.
 
     Returns:
         Tuple[StadiumRAG, GeminiHelper]: Initialized backend RAG and AI helper instances.
     """
+    verify_requirements_versions()
     rag = get_rag_engine(force_reindex=False)
     api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or ""
     gemini = GeminiHelper(api_key=api_key)
@@ -65,7 +107,6 @@ def init_backend() -> Tuple[StadiumRAG, GeminiHelper]:
 
 rag_engine, gemini_helper = init_backend()
 
-# Render Accessible Hero Banner
 st.markdown("""
 <div class="hero-container" role="banner" aria-label="Stadium Assistant Welcome Header">
     <div class="hero-badge" role="status">🏆 FIFA WORLD CUP 2026 — OFFICIAL CONCIERGE</div>
@@ -76,11 +117,9 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Sidebar Configuration
 with st.sidebar:
     st.markdown("## ⚙️ Settings & Filters")
     
-    # API Key Configuration
     current_key: str = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or ""
     user_api_key: str = st.text_input(
         "🔑 Gemini API Key",
@@ -160,13 +199,11 @@ with st.sidebar:
         if st.button(f"👉 {q}", key=f"btn_{q}", help=f"Click to automatically ask: {q}"):
             st.session_state.quick_query_trigger = q
 
-# Handle user input from either chat input or quick prompt chips
 user_input: Optional[str] = st.chat_input("Ask a question in any language (English, Spanish, Hindi, French, Arabic...)...")
 if st.session_state.quick_query_trigger:
     user_input = st.session_state.quick_query_trigger
     st.session_state.quick_query_trigger = None
 
-# Render existing chat messages
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         if msg["role"] == "user":
@@ -177,31 +214,9 @@ for msg in st.session_state.messages:
             if msg.get("detected_language") and msg["detected_language"] != "Multilingual Welcome":
                 st.markdown(f"""<div class="lang-badge lang-badge-ai" role="status" aria-label="AI Response Language">🤖 Responding in: {msg['detected_language']}</div>""", unsafe_allow_html=True)
             st.markdown(msg["content"])
-            
-            # Show grounding sources accordion if present
-            chunks: List[Dict[str, Any]] = msg.get("chunks", [])
-            if chunks and len(chunks) > 0:
-                with st.expander(f"🔍 Grounding Sources & ChromaDB Retrieval ({len(chunks)} citations)", expanded=False):
-                    for idx, chunk in enumerate(chunks, 1):
-                        meta = chunk.get("metadata", {})
-                        stadium_name = meta.get("stadium", "General")
-                        cat = str(meta.get("category", "info")).upper()
-                        relevance = chunk.get("relevance", 0.0)
-                        text = chunk.get("text", "")
-                        
-                        st.markdown(f"""
-                        <div class="source-card" role="article" aria-label="Citation Source {idx}">
-                            <div class="source-header">
-                                <span>📌 Source {idx}: {stadium_name} — {cat}</span>
-                                <span class="relevance-pill">Match: {relevance}%</span>
-                            </div>
-                            <div>{text}</div>
-                        </div>
-                        """, unsafe_allow_html=True)
+            render_grounding_sources(msg.get("chunks", []))
 
-# Process new user input
 if user_input:
-    # Append user message
     st.session_state.messages.append({
         "role": "user",
         "content": user_input,
@@ -209,13 +224,11 @@ if user_input:
         "chunks": []
     })
     
-    # Rerun immediately so user sees their input bubble right away before processing starts
     with st.chat_message("user"):
         st.markdown(user_input)
         
     with st.chat_message("assistant"):
         with st.spinner("🔍 Analyzing query language & retrieving verified stadium info..."):
-            # 1. Retrieve grounded FAQ chunks via ChromaDB
             retrieved_chunks = rag_engine.query_stadium_info(
                 query=user_input,
                 stadium_filter=stadium_filter,
@@ -223,11 +236,7 @@ if user_input:
                 top_k=4
             )
             
-            # 2. Generate grounded multilingual answer via Gemini API
-            history = [
-                {"role": str(m["role"]), "content": str(m["content"])}
-                for m in st.session_state.messages[:-1]
-            ]
+            history = build_conversation_history(st.session_state.messages[:-1])
             response_data = gemini_helper.generate_grounded_answer(
                 user_query=user_input,
                 retrieved_chunks=retrieved_chunks,
@@ -238,34 +247,12 @@ if user_input:
             answer_text: str = response_data.get("answer", "")
             is_grounded: bool = response_data.get("is_grounded", True)
             
-            # Update user message detected language in history
             st.session_state.messages[-1]["detected_language"] = detected_lang
             
-            # Display language badge and answer
             st.markdown(f"""<div class="lang-badge lang-badge-ai" role="status" aria-label="AI Response Language">🤖 Responding in: {detected_lang}</div>""", unsafe_allow_html=True)
             st.markdown(answer_text)
-            
-            # Display retrieved sources
-            if retrieved_chunks:
-                with st.expander(f"🔍 Grounding Sources & ChromaDB Retrieval ({len(retrieved_chunks)} citations)", expanded=False):
-                    for idx, chunk in enumerate(retrieved_chunks, 1):
-                        meta = chunk.get("metadata", {})
-                        stadium_name = meta.get("stadium", "General")
-                        cat = str(meta.get("category", "info")).upper()
-                        relevance = chunk.get("relevance", 0.0)
-                        text = chunk.get("text", "")
+            render_grounding_sources(retrieved_chunks)
                         
-                        st.markdown(f"""
-                        <div class="source-card" role="article" aria-label="Citation Source {idx}">
-                            <div class="source-header">
-                                <span>📌 Source {idx}: {stadium_name} — {cat}</span>
-                                <span class="relevance-pill">Match: {relevance}%</span>
-                            </div>
-                            <div>{text}</div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        
-            # Append assistant response to session state
             st.session_state.messages.append({
                 "role": "assistant",
                 "content": answer_text,
@@ -275,6 +262,5 @@ if user_input:
                 "is_grounded": is_grounded
             })
             
-            # Rerun to cleanly update chat state
             time.sleep(0.5)
             st.rerun()

@@ -5,6 +5,7 @@ from typing import List, Dict, Any
 from knowledge_base.ingest import load_all_faq_documents
 from rag_engine import StadiumRAG
 from gemini_helper import GeminiHelper
+from utils import verify_requirements_versions
 
 
 class TestStadiumAssistant(unittest.TestCase):
@@ -101,6 +102,11 @@ class TestStadiumAssistant(unittest.TestCase):
         self.assertIn("detected_language", response)
         self.assertIn("answer", response)
         self.assertIn("is_grounded", response)
+
+    def test_05_verify_requirements_versions(self) -> None:
+        """Verify that the requirements check utility cleanly checks versions against `requirements.txt`."""
+        result: bool = verify_requirements_versions()
+        self.assertIsInstance(result, bool)
 
 
 if __name__ == "__main__":

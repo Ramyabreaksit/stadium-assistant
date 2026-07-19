@@ -4,8 +4,64 @@ import chromadb
 from chromadb.config import Settings
 from chromadb.utils import embedding_functions
 from knowledge_base.ingest import load_all_faq_documents
+from utils import setup_logging
+
+logger = setup_logging(__name__)
 
 COLLECTION_NAME: str = "stadium_faq_gemini_collection"
+BATCH_SIZE: int = 50
+DEFAULT_TOP_K: int = 4
+
+
+def _build_chroma_where_clause(
+    stadium_filter: Optional[str] = None,
+    category_filter: Optional[str] = None
+) -> Optional[Dict[str, Any]]:
+    """Helper function to construct a valid ChromaDB where-clause filter dictionary.
+
+    Args:
+        stadium_filter (Optional[str]): Venue name to restrict search.
+        category_filter (Optional[str]): Topic category filter (`'Gates'`, `'Transport'`, etc.).
+
+    Returns:
+        Optional[Dict[str, Any]]: Validated filter dictionary for ChromaDB `where` query argument,
+        or `None` if no filters are applied.
+    """
+    where_filter: Dict[str, Any] = {}
+    if stadium_filter and stadium_filter != "All Venues":
+        where_filter["stadium"] = stadium_filter
+    if category_filter and category_filter != "All Categories":
+        where_filter["category"] = category_filter.lower()
+        
+    if len(where_filter) == 1:
+        return where_filter
+    elif len(where_filter) > 1:
+        return {"$and": [{k: v} for k, v in where_filter.items()]}
+    return None
+
+
+def _format_retrieved_chunk(
+    doc_text: str,
+    metadata: Dict[str, Any],
+    distance: float
+) -> Dict[str, Any]:
+    """Format and normalize a retrieved raw vector match into a structured result dictionary.
+
+    Args:
+        doc_text (str): Document chunk content text.
+        metadata (Dict[str, Any]): Associated metadata fields.
+        distance (float): Raw L2 or cosine distance score returned by ChromaDB.
+
+    Returns:
+        Dict[str, Any]: Dictionary with `text`, `metadata`, normalized `relevance` percentage, and `distance`.
+    """
+    relevance = max(0.0, min(100.0, round((1.0 - (distance / 2.0)) * 100, 1)))
+    return {
+        "text": doc_text,
+        "metadata": metadata,
+        "relevance": relevance,
+        "distance": distance
+    }
 
 
 class GeminiEmbeddingFunction(chromadb.EmbeddingFunction):
@@ -62,7 +118,7 @@ class GeminiEmbeddingFunction(chromadb.EmbeddingFunction):
         """
         api_key = self.api_key or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
         if not api_key:
-            print("[Warning] No Gemini API key provided for embedding. Using ChromaDB DefaultEmbeddingFunction.")
+            logger.warning("No Gemini API key provided for embedding. Using ChromaDB DefaultEmbeddingFunction.")
             return self.fallback_ef(input)
         
         try:
@@ -81,10 +137,10 @@ class GeminiEmbeddingFunction(chromadb.EmbeddingFunction):
                     embeddings.append(self.fallback_ef([text])[0])
             return embeddings
         except ImportError:
-            print("[Error] `google-genai` package is not installed. Falling back to default embedding.")
+            logger.error("`google-genai` package is not installed. Falling back to default embedding.")
             return self.fallback_ef(input)
         except Exception as e:
-            print(f"[Error] Gemini API embedding failed ({e}). Falling back to DefaultEmbeddingFunction.")
+            logger.error("Gemini API embedding failed (%s). Falling back to DefaultEmbeddingFunction.", e)
             return self.fallback_ef(input)
 
 
@@ -102,22 +158,19 @@ class StadiumRAG:
         try:
             os.makedirs(self.db_path, exist_ok=True)
         except OSError as ose:
-            print(f"[Error] Failed to create ChromaDB directory at {self.db_path}: {ose}")
+            logger.error("Failed to create ChromaDB directory at %s: %s", self.db_path, ose)
         
-        # Initialize persistent ChromaDB client
         try:
             self.client = chromadb.PersistentClient(
                 path=self.db_path,
                 settings=Settings(anonymized_telemetry=False)
             )
         except Exception as e:
-            print(f"[Critical Error] Failed to initialize persistent ChromaDB client: {e}")
+            logger.critical("Failed to initialize persistent ChromaDB client: %s", e)
             raise
         
-        # Initialize Gemini embedding function (lightweight, no local torch/transformers required)
         self.embedding_function = GeminiEmbeddingFunction()
         
-        # Get or create collection
         try:
             self.collection = self.client.get_or_create_collection(
                 name=COLLECTION_NAME,
@@ -125,10 +178,9 @@ class StadiumRAG:
                 metadata={"description": "Multilingual FIFA World Cup 2026 Stadium Knowledge Base (Gemini Embeddings)"}
             )
         except Exception as e:
-            print(f"[Error] Failed to get or create collection `{COLLECTION_NAME}`: {e}")
+            logger.error("Failed to get or create collection `%s`: %s", COLLECTION_NAME, e)
             raise
         
-        # Auto-ingest if empty or forced
         if force_reindex or self.collection.count() == 0:
             self.reindex_knowledge_base()
 
@@ -150,32 +202,30 @@ class StadiumRAG:
                 metadata={"description": "Multilingual FIFA World Cup 2026 Stadium Knowledge Base (Gemini Embeddings)"}
             )
         except Exception as e:
-            print(f"[Error] Failed to recreate ChromaDB collection during re-indexing: {e}")
+            logger.error("Failed to recreate ChromaDB collection during re-indexing: %s", e)
             return 0
         
         docs = load_all_faq_documents()
         if not docs:
-            print("[Info] No documents found to index.")
+            logger.info("No documents found to index.")
             return 0
             
         ids = [doc["id"] for doc in docs]
         texts = [doc["text"] for doc in docs]
         metadatas = [doc["metadata"] for doc in docs]
         
-        # Upsert in batches to ensure smooth ingestion
-        batch_size = 50
         try:
-            for i in range(0, len(ids), batch_size):
+            for i in range(0, len(ids), BATCH_SIZE):
                 self.collection.add(
-                    ids=ids[i:i+batch_size],
-                    documents=texts[i:i+batch_size],
-                    metadatas=metadatas[i:i+batch_size]
+                    ids=ids[i:i+BATCH_SIZE],
+                    documents=texts[i:i+BATCH_SIZE],
+                    metadatas=metadatas[i:i+BATCH_SIZE]
                 )
         except Exception as e:
-            print(f"[Error] Failed while adding batch to ChromaDB collection: {e}")
+            logger.error("Failed while adding batch to ChromaDB collection: %s", e)
             
         count = self.collection.count()
-        print(f"Successfully indexed {count} items into ChromaDB ({COLLECTION_NAME}).")
+        logger.info("Successfully indexed %d items into ChromaDB (%s).", count, COLLECTION_NAME)
         return count
 
     def get_doc_count(self) -> int:
@@ -187,7 +237,7 @@ class StadiumRAG:
         try:
             return self.collection.count()
         except Exception as e:
-            print(f"[Error] Could not query collection count: {e}")
+            logger.error("Could not query collection count: %s", e)
             return 0
 
     def query_stadium_info(
@@ -195,7 +245,7 @@ class StadiumRAG:
         query: str, 
         stadium_filter: Optional[str] = None, 
         category_filter: Optional[str] = None,
-        top_k: int = 4
+        top_k: int = DEFAULT_TOP_K
     ) -> List[Dict[str, Any]]:
         """Retrieve top `top_k` relevant FAQ chunks given a user query and optional metadata filters.
 
@@ -211,33 +261,24 @@ class StadiumRAG:
         if not query or not query.strip():
             return []
 
-        where_filter: Dict[str, Any] = {}
-        if stadium_filter and stadium_filter != "All Venues":
-            where_filter["stadium"] = stadium_filter
-        if category_filter and category_filter != "All Categories":
-            where_filter["category"] = category_filter.lower()
-            
-        chroma_where: Optional[Dict[str, Any]] = None
-        if len(where_filter) == 1:
-            chroma_where = where_filter
-        elif len(where_filter) > 1:
-            chroma_where = {"$and": [{k: v} for k, v in where_filter.items()]}
+        chroma_where = _build_chroma_where_clause(stadium_filter, category_filter)
+        n_results = min(top_k, max(1, self.collection.count()))
             
         try:
             results = self.collection.query(
                 query_texts=[query],
-                n_results=min(top_k, max(1, self.collection.count())),
+                n_results=n_results,
                 where=chroma_where
             )
         except Exception as e:
-            print(f"[Warning] Filter search error ({e}). Falling back to unfiltered vector query.")
+            logger.warning("Filter search error (%s). Falling back to unfiltered vector query.", e)
             try:
                 results = self.collection.query(
                     query_texts=[query],
-                    n_results=min(top_k, max(1, self.collection.count()))
+                    n_results=n_results
                 )
             except Exception as inner_e:
-                print(f"[Error] ChromaDB query completely failed: {inner_e}")
+                logger.error("ChromaDB query completely failed: %s", inner_e)
                 return []
             
         retrieved_chunks: List[Dict[str, Any]] = []
@@ -247,20 +288,13 @@ class StadiumRAG:
                 metadata = results["metadatas"][0][i] if results.get("metadatas") else {}
                 distance = float(results["distances"][0][i]) if results.get("distances") and results["distances"] else 0.0
                 
-                # Convert L2 distance to relevance percentage approximation (lower distance = higher relevance)
-                relevance = max(0.0, min(100.0, round((1.0 - (distance / 2.0)) * 100, 1)))
-                
-                retrieved_chunks.append({
-                    "text": doc_text,
-                    "metadata": metadata,
-                    "relevance": relevance,
-                    "distance": distance
-                })
+                retrieved_chunks.append(
+                    _format_retrieved_chunk(doc_text, metadata, distance)
+                )
                 
         return retrieved_chunks
 
 
-# Singleton instance accessor for Streamlit caching
 _rag_instance: Optional[StadiumRAG] = None
 
 

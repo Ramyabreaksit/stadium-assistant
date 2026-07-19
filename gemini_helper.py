@@ -2,6 +2,9 @@ import os
 import json
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
+from utils import setup_logging
+
+logger = setup_logging(__name__)
 
 try:
     from google import genai
@@ -29,6 +32,76 @@ class StadiumAIResponse(BaseModel):
     )
 
 
+def _format_retrieved_context(retrieved_chunks: List[Dict[str, Any]]) -> str:
+    """Format a list of retrieved ChromaDB dictionary chunks into a structured prompt context string.
+
+    Args:
+        retrieved_chunks (List[Dict[str, Any]]): List of retrieved chunk dictionaries.
+
+    Returns:
+        str: Formatted context string with numbered source citations.
+    """
+    if not retrieved_chunks:
+        return "No direct factual stadium documents matched this query."
+        
+    context_text = ""
+    for idx, chunk in enumerate(retrieved_chunks, 1):
+        stadium = chunk.get("metadata", {}).get("stadium", "General")
+        category = chunk.get("metadata", {}).get("category", "info")
+        text = chunk.get("text", "")
+        context_text += f"\n--- [Source {idx}: {stadium} | {category.upper()}] ---\n{text}\n"
+    return context_text
+
+
+def _format_conversation_history(conversation_history: Optional[List[Dict[str, str]]]) -> str:
+    """Format recent turns of conversation history for prompt injection.
+
+    Args:
+        conversation_history (Optional[List[Dict[str, str]]]): List of chat turns (`role`, `content`).
+
+    Returns:
+        str: Formatted history string or `'None'`.
+    """
+    if not conversation_history or len(conversation_history) == 0:
+        return "None"
+        
+    history_str = ""
+    recent = conversation_history[-3:]
+    for turn in recent:
+        role = str(turn.get("role", "user")).upper()
+        content = str(turn.get("content", ""))
+        history_str += f"{role}: {content}\n"
+    return history_str.strip()
+
+
+def _parse_json_response(raw_text: str, default_answer: str = "No answer generated.") -> Dict[str, Any]:
+    """Safely parse a JSON model output string into the standardized dictionary structure.
+
+    Args:
+        raw_text (str): Raw string output from the Gemini API.
+        default_answer (str): Fallback text if the answer field is missing.
+
+    Returns:
+        Dict[str, Any]: Standardized response dictionary.
+    """
+    try:
+        data = json.loads(raw_text)
+        return {
+            "detected_language": str(data.get("detected_language", "Unknown")),
+            "detected_language_code": str(data.get("detected_language_code", "en")),
+            "answer": str(data.get("answer", default_answer)),
+            "is_grounded": bool(data.get("is_grounded", True))
+        }
+    except Exception as e:
+        logger.warning("JSON decoding of raw response failed (%s). Returning raw text.", e)
+        return {
+            "detected_language": "English",
+            "detected_language_code": "en",
+            "answer": raw_text or default_answer,
+            "is_grounded": True
+        }
+
+
 class GeminiHelper:
     """Helper client handling communication with Google Gemini API for language detection and grounded RAG responses."""
 
@@ -47,7 +120,7 @@ class GeminiHelper:
             try:
                 self.client = genai.Client(api_key=self.api_key)
             except Exception as e:
-                print(f"[Error] Failed to initialize `google-genai` Client: {e}")
+                logger.error("Failed to initialize `google-genai` Client: %s", e)
 
     def update_api_key(self, api_key: str) -> None:
         """Update the active API key and re-initialize the `google-genai` client.
@@ -60,7 +133,7 @@ class GeminiHelper:
             try:
                 self.client = genai.Client(api_key=self.api_key)
             except Exception as e:
-                print(f"[Error] Failed to re-initialize `google-genai` Client with new key: {e}")
+                logger.error("Failed to re-initialize `google-genai` Client with new key: %s", e)
 
     def generate_grounded_answer(
         self, 
@@ -85,7 +158,7 @@ class GeminiHelper:
                 try:
                     self.client = genai.Client(api_key=self.api_key)
                 except Exception as e:
-                    print(f"[Error] Delayed initialization of `google-genai` Client failed: {e}")
+                    logger.error("Delayed initialization of `google-genai` Client failed: %s", e)
             
             if not self.client:
                 return {
@@ -95,25 +168,8 @@ class GeminiHelper:
                     "is_grounded": False
                 }
 
-        # Format retrieved context
-        context_text = ""
-        if retrieved_chunks:
-            for idx, chunk in enumerate(retrieved_chunks, 1):
-                stadium = chunk.get("metadata", {}).get("stadium", "General")
-                category = chunk.get("metadata", {}).get("category", "info")
-                text = chunk.get("text", "")
-                context_text += f"\n--- [Source {idx}: {stadium} | {category.upper()}] ---\n{text}\n"
-        else:
-            context_text = "No direct factual stadium documents matched this query."
-
-        # Format brief conversation context if any
-        history_str = ""
-        if conversation_history and len(conversation_history) > 0:
-            recent = conversation_history[-3:]
-            for turn in recent:
-                role = str(turn.get("role", "user"))
-                content = str(turn.get("content", ""))
-                history_str += f"{role.upper()}: {content}\n"
+        context_text = _format_retrieved_context(retrieved_chunks)
+        history_str = _format_conversation_history(conversation_history)
 
         system_instruction = (
             "You are 'Stadium Assistant', the official, helpful, and friendly multilingual AI concierge for fans attending the FIFA World Cup 2026.\n"
@@ -127,7 +183,7 @@ class GeminiHelper:
 
         prompt = (
             f"User Query: {user_query}\n\n"
-            f"Recent Conversation History:\n{history_str if history_str else 'None'}\n\n"
+            f"Recent Conversation History:\n{history_str}\n\n"
             f"Retrieved Stadium Context Chunks:\n{context_text}\n\n"
             "Analyze the query language and provide your grounded response strictly adhering to the JSON schema output format."
         )
@@ -143,17 +199,9 @@ class GeminiHelper:
                     response_schema=StadiumAIResponse
                 )
             )
-            
-            raw_text = response.text or "{}"
-            data = json.loads(raw_text)
-            return {
-                "detected_language": str(data.get("detected_language", "Unknown")),
-                "detected_language_code": str(data.get("detected_language_code", "en")),
-                "answer": str(data.get("answer", "No answer generated.")),
-                "is_grounded": bool(data.get("is_grounded", True))
-            }
+            return _parse_json_response(response.text or "{}")
         except APIError as api_err:
-            print(f"[Error] Gemini API Error during generation ({self.model_name}): {api_err}")
+            logger.error("Gemini API Error during generation (%s): %s", self.model_name, api_err)
             err_msg = str(api_err)
             if "400" in err_msg or "INVALID_ARGUMENT" in err_msg or "API_KEY_INVALID" in err_msg:
                 user_friendly_msg = "⚠️ **Invalid API Key**: The provided Google Gemini API Key is invalid or expired. Please check your key in the sidebar and try again."
@@ -168,7 +216,7 @@ class GeminiHelper:
                 "is_grounded": False
             }
         except Exception as e:
-            print(f"[Warning] Structured schema generation failed ({e}). Attempting secondary fallback model...")
+            logger.warning("Structured schema generation failed (%s). Attempting secondary fallback model...", e)
             try:
                 fallback_model = "gemini-2.5-flash" if self.model_name != "gemini-2.5-flash" else "gemini-1.5-flash"
                 fallback_prompt = (
@@ -185,16 +233,9 @@ class GeminiHelper:
                         response_mime_type="application/json"
                     )
                 )
-                raw_fallback = response.text or "{}"
-                data = json.loads(raw_fallback)
-                return {
-                    "detected_language": str(data.get("detected_language", "English")),
-                    "detected_language_code": str(data.get("detected_language_code", "en")),
-                    "answer": str(data.get("answer", response.text)),
-                    "is_grounded": bool(data.get("is_grounded", True))
-                }
+                return _parse_json_response(response.text or "{}")
             except Exception as inner_e:
-                print(f"[Error] Fallback generation also failed: {inner_e}")
+                logger.error("Fallback generation also failed: %s", inner_e)
                 return {
                     "detected_language": "English",
                     "detected_language_code": "en",
