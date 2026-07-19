@@ -1,5 +1,6 @@
 import os
 import time
+from typing import Tuple, List, Dict, Any, Optional
 import streamlit as st
 from dotenv import load_dotenv
 
@@ -7,7 +8,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Import local engines
-from rag_engine import get_rag_engine
+from rag_engine import get_rag_engine, StadiumRAG
 from gemini_helper import GeminiHelper
 
 # Configure Streamlit page settings
@@ -18,12 +19,17 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Load Custom CSS
-def load_css():
-    css_path = os.path.join(os.path.dirname(__file__), "style.css")
+
+def load_css() -> None:
+    """Load custom stylesheet (`style.css`) and inject accessible styling into Streamlit DOM."""
+    css_path: str = os.path.join(os.path.dirname(__file__), "style.css")
     if os.path.exists(css_path):
-        with open(css_path, "r", encoding="utf-8") as f:
-            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+        try:
+            with open(css_path, "r", encoding="utf-8") as f:
+                st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+        except Exception as e:
+            st.error(f"Error loading CSS stylesheet: {e}")
+
 
 load_css()
 
@@ -43,20 +49,26 @@ if "messages" not in st.session_state:
 if "quick_query_trigger" not in st.session_state:
     st.session_state.quick_query_trigger = None
 
-# Initialize RAG Engine and Gemini Helper
+
 @st.cache_resource(show_spinner=False)
-def init_backend():
+def init_backend() -> Tuple[StadiumRAG, GeminiHelper]:
+    """Initialize and cache backend instances (`StadiumRAG` and `GeminiHelper`).
+
+    Returns:
+        Tuple[StadiumRAG, GeminiHelper]: Initialized backend RAG and AI helper instances.
+    """
     rag = get_rag_engine(force_reindex=False)
     api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or ""
     gemini = GeminiHelper(api_key=api_key)
     return rag, gemini
 
+
 rag_engine, gemini_helper = init_backend()
 
-# Render Hero Banner
+# Render Accessible Hero Banner
 st.markdown("""
-<div class="hero-container">
-    <div class="hero-badge">🏆 FIFA WORLD CUP 2026 — OFFICIAL CONCIERGE</div>
+<div class="hero-container" role="banner" aria-label="Stadium Assistant Welcome Header">
+    <div class="hero-badge" role="status">🏆 FIFA WORLD CUP 2026 — OFFICIAL CONCIERGE</div>
     <div class="hero-title">⚽ Stadium Assistant</div>
     <div class="hero-subtitle">
         Your intelligent, multilingual guide grounded strictly in verified stadium data. Ask anything in English, Spanish, Hindi, French, or any language about gates, seating, food concessions, transit shuttles, restrooms, or security rules.
@@ -69,12 +81,12 @@ with st.sidebar:
     st.markdown("## ⚙️ Settings & Filters")
     
     # API Key Configuration
-    current_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or ""
-    user_api_key = st.text_input(
+    current_key: str = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or ""
+    user_api_key: str = st.text_input(
         "🔑 Gemini API Key",
         value=current_key,
         type="password",
-        help="Enter your Google Gemini API Key. Or set GEMINI_API_KEY environment variable."
+        help="Enter your Google Gemini API Key or set the GEMINI_API_KEY environment variable."
     )
     if user_api_key and user_api_key != current_key:
         os.environ["GEMINI_API_KEY"] = user_api_key
@@ -86,7 +98,7 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 🗺️ Context Filters")
     
-    stadium_filter = st.selectbox(
+    stadium_filter: str = st.selectbox(
         "🏟️ Filter by Stadium Venue",
         [
             "All Venues",
@@ -95,10 +107,11 @@ with st.sidebar:
             "Los Angeles Stadium (SoFi)",
             "General Tournament Rules & Policies"
         ],
-        index=0
+        index=0,
+        help="Filter vector search results to only include facts about a specific venue or rules."
     )
     
-    category_filter = st.selectbox(
+    category_filter: str = st.selectbox(
         "📌 Filter by Topic Category",
         [
             "All Categories",
@@ -110,20 +123,21 @@ with st.sidebar:
             "Exits",
             "Rules"
         ],
-        index=0
+        index=0,
+        help="Filter search results by category like navigation, food options, or prohibited items."
     )
     
     st.markdown("---")
     st.markdown("### 📚 Knowledge Base Status")
-    doc_count = rag_engine.get_doc_count()
+    doc_count: int = rag_engine.get_doc_count()
     st.markdown(f"""
-    <div class="status-box">
-        <div class="status-number">{doc_count}</div>
+    <div class="status-box" role="region" aria-label="Knowledge Base Statistics">
+        <div class="status-number" aria-live="polite">{doc_count}</div>
         <div class="status-label">Indexed FAQ Documents</div>
     </div>
     """, unsafe_allow_html=True)
     
-    if st.button("🔄 Re-Index Knowledge Base", use_container_width=True):
+    if st.button("🔄 Re-Index Knowledge Base", use_container_width=True, help="Reload all local FAQ files and rebuild the ChromaDB index."):
         with st.spinner("Re-indexing local FAQ files into ChromaDB..."):
             count = rag_engine.reindex_knowledge_base()
             st.success(f"Indexed {count} documents!")
@@ -134,7 +148,7 @@ with st.sidebar:
     st.markdown("### 💬 Quick Multilingual Questions")
     st.markdown("<p style='font-size:0.82rem; color:#94a3b8;'>Click any prompt to ask immediately across languages:</p>", unsafe_allow_html=True)
     
-    quick_questions = [
+    quick_questions: List[str] = [
         "Where is Gate 4 at New York Stadium and what time do gates open?",
         "¿Dónde hay comida vegetariana o halal en el Estadio Azteca?",
         "क्या मैं स्टेडियम के अंदर पानी की बोतल या बैग ले जा सकता हूँ?",
@@ -143,11 +157,11 @@ with st.sidebar:
     ]
     
     for q in quick_questions:
-        if st.button(f"👉 {q}", key=f"btn_{q}"):
+        if st.button(f"👉 {q}", key=f"btn_{q}", help=f"Click to automatically ask: {q}"):
             st.session_state.quick_query_trigger = q
 
 # Handle user input from either chat input or quick prompt chips
-user_input = st.chat_input("Ask a question in any language (English, Spanish, Hindi, French, Arabic...)...")
+user_input: Optional[str] = st.chat_input("Ask a question in any language (English, Spanish, Hindi, French, Arabic...)...")
 if st.session_state.quick_query_trigger:
     user_input = st.session_state.quick_query_trigger
     st.session_state.quick_query_trigger = None
@@ -157,26 +171,26 @@ for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         if msg["role"] == "user":
             if msg.get("detected_language"):
-                st.markdown(f"""<div class="lang-badge">🗣️ Query Language: {msg['detected_language']}</div>""", unsafe_allow_html=True)
+                st.markdown(f"""<div class="lang-badge" role="status" aria-label="Detected Query Language">🗣️ Query Language: {msg['detected_language']}</div>""", unsafe_allow_html=True)
             st.markdown(msg["content"])
         else:
             if msg.get("detected_language") and msg["detected_language"] != "Multilingual Welcome":
-                st.markdown(f"""<div class="lang-badge lang-badge-ai">🤖 Responding in: {msg['detected_language']}</div>""", unsafe_allow_html=True)
+                st.markdown(f"""<div class="lang-badge lang-badge-ai" role="status" aria-label="AI Response Language">🤖 Responding in: {msg['detected_language']}</div>""", unsafe_allow_html=True)
             st.markdown(msg["content"])
             
             # Show grounding sources accordion if present
-            chunks = msg.get("chunks", [])
+            chunks: List[Dict[str, Any]] = msg.get("chunks", [])
             if chunks and len(chunks) > 0:
                 with st.expander(f"🔍 Grounding Sources & ChromaDB Retrieval ({len(chunks)} citations)", expanded=False):
                     for idx, chunk in enumerate(chunks, 1):
                         meta = chunk.get("metadata", {})
                         stadium_name = meta.get("stadium", "General")
-                        cat = meta.get("category", "info").upper()
+                        cat = str(meta.get("category", "info")).upper()
                         relevance = chunk.get("relevance", 0.0)
                         text = chunk.get("text", "")
                         
                         st.markdown(f"""
-                        <div class="source-card">
+                        <div class="source-card" role="article" aria-label="Citation Source {idx}">
                             <div class="source-header">
                                 <span>📌 Source {idx}: {stadium_name} — {cat}</span>
                                 <span class="relevance-pill">Match: {relevance}%</span>
@@ -211,7 +225,7 @@ if user_input:
             
             # 2. Generate grounded multilingual answer via Gemini API
             history = [
-                {"role": m["role"], "content": m["content"]}
+                {"role": str(m["role"]), "content": str(m["content"])}
                 for m in st.session_state.messages[:-1]
             ]
             response_data = gemini_helper.generate_grounded_answer(
@@ -220,15 +234,15 @@ if user_input:
                 conversation_history=history
             )
             
-            detected_lang = response_data.get("detected_language", "English")
-            answer_text = response_data.get("answer", "")
-            is_grounded = response_data.get("is_grounded", True)
+            detected_lang: str = response_data.get("detected_language", "English")
+            answer_text: str = response_data.get("answer", "")
+            is_grounded: bool = response_data.get("is_grounded", True)
             
             # Update user message detected language in history
             st.session_state.messages[-1]["detected_language"] = detected_lang
             
             # Display language badge and answer
-            st.markdown(f"""<div class="lang-badge lang-badge-ai">🤖 Responding in: {detected_lang}</div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div class="lang-badge lang-badge-ai" role="status" aria-label="AI Response Language">🤖 Responding in: {detected_lang}</div>""", unsafe_allow_html=True)
             st.markdown(answer_text)
             
             # Display retrieved sources
@@ -237,12 +251,12 @@ if user_input:
                     for idx, chunk in enumerate(retrieved_chunks, 1):
                         meta = chunk.get("metadata", {})
                         stadium_name = meta.get("stadium", "General")
-                        cat = meta.get("category", "info").upper()
+                        cat = str(meta.get("category", "info")).upper()
                         relevance = chunk.get("relevance", 0.0)
                         text = chunk.get("text", "")
                         
                         st.markdown(f"""
-                        <div class="source-card">
+                        <div class="source-card" role="article" aria-label="Citation Source {idx}">
                             <div class="source-header">
                                 <span>📌 Source {idx}: {stadium_name} — {cat}</span>
                                 <span class="relevance-pill">Match: {relevance}%</span>

@@ -6,35 +6,61 @@ from pydantic import BaseModel, Field
 try:
     from google import genai
     from google.genai import types
-    GENAI_AVAILABLE = True
+    from google.genai.errors import APIError
+    GENAI_AVAILABLE: bool = True
 except ImportError:
     GENAI_AVAILABLE = False
+    APIError = Exception
+
 
 class StadiumAIResponse(BaseModel):
-    detected_language: str = Field(description="The full human-readable name of the detected language, e.g., 'English', 'Spanish (Español)', 'Hindi (हिन्दी)', 'French (Français)'")
-    detected_language_code: str = Field(description="ISO 639-1 language code, e.g., 'en', 'es', 'hi', 'fr', 'ar', 'ja'")
-    answer: str = Field(description="The final helpful, conversational response answering the user's question grounded in the retrieved FAQ context, written strictly in the detected language.")
-    is_grounded: bool = Field(description="True if the answer directly used facts from the provided context chunks, False if the context did not contain the answer.")
+    """Structured Pydantic schema representing the multilingual grounded AI response."""
+    detected_language: str = Field(
+        description="The full human-readable name of the detected language, e.g., 'English', 'Spanish (Español)', 'Hindi (हिन्दी)', 'French (Français)'"
+    )
+    detected_language_code: str = Field(
+        description="ISO 639-1 language code, e.g., 'en', 'es', 'hi', 'fr', 'ar', 'ja'"
+    )
+    answer: str = Field(
+        description="The final helpful, conversational response answering the user's question grounded in the retrieved FAQ context, written strictly in the detected language."
+    )
+    is_grounded: bool = Field(
+        description="True if the answer directly used facts from the provided context chunks, False if the context did not contain the answer."
+    )
+
 
 class GeminiHelper:
+    """Helper client handling communication with Google Gemini API for language detection and grounded RAG responses."""
+
     def __init__(self, api_key: Optional[str] = None, model_name: str = "gemini-2.5-flash"):
-        self.model_name = model_name
-        self.api_key = api_key or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+        """Initialize the Gemini helper client.
+
+        Args:
+            api_key (Optional[str]): Explicit Google Gemini API key. Defaults to environment variables if `None`.
+            model_name (str): Target model endpoint for generation (default: `'gemini-2.5-flash'`).
+        """
+        self.model_name: str = model_name
+        self.api_key: Optional[str] = api_key or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
         
-        self.client = None
+        self.client: Optional[Any] = None
         if GENAI_AVAILABLE and self.api_key:
             try:
                 self.client = genai.Client(api_key=self.api_key)
             except Exception as e:
-                print(f"Failed to initialize google-genai Client: {e}")
+                print(f"[Error] Failed to initialize `google-genai` Client: {e}")
 
-    def update_api_key(self, api_key: str):
+    def update_api_key(self, api_key: str) -> None:
+        """Update the active API key and re-initialize the `google-genai` client.
+
+        Args:
+            api_key (str): New Gemini API key string.
+        """
         self.api_key = api_key
         if GENAI_AVAILABLE and self.api_key:
             try:
                 self.client = genai.Client(api_key=self.api_key)
             except Exception as e:
-                print(f"Failed to re-initialize google-genai Client: {e}")
+                print(f"[Error] Failed to re-initialize `google-genai` Client with new key: {e}")
 
     def generate_grounded_answer(
         self, 
@@ -42,19 +68,30 @@ class GeminiHelper:
         retrieved_chunks: List[Dict[str, Any]], 
         conversation_history: Optional[List[Dict[str, str]]] = None
     ) -> Dict[str, Any]:
-        """
-        Detects the query language and generates an accurate answer grounded strictly in the retrieved ChromaDB chunks.
+        """Detect the query language and generate an accurate response grounded strictly in retrieved ChromaDB chunks.
+
+        Args:
+            user_query (str): The natural language question submitted by the user.
+            retrieved_chunks (List[Dict[str, Any]]): Top-k relevant context chunks retrieved from ChromaDB.
+            conversation_history (Optional[List[Dict[str, str]]]): Recent chat turn dictionaries (`role`, `content`).
+
+        Returns:
+            Dict[str, Any]: A response dictionary containing `'detected_language'`, `'detected_language_code'`,
+            `'answer'`, and `'is_grounded'`.
         """
         if not self.client:
-            # Check if key is now in env
             self.api_key = self.api_key or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
             if self.api_key and GENAI_AVAILABLE:
-                self.client = genai.Client(api_key=self.api_key)
-            else:
+                try:
+                    self.client = genai.Client(api_key=self.api_key)
+                except Exception as e:
+                    print(f"[Error] Delayed initialization of `google-genai` Client failed: {e}")
+            
+            if not self.client:
                 return {
                     "detected_language": "English",
                     "detected_language_code": "en",
-                    "answer": "⚠️ **API Key Missing**: Please provide your Google Gemini API Key in the sidebar or set the `GEMINI_API_KEY` environment variable to enable intelligent multilingual RAG responses.",
+                    "answer": "⚠️ **API Key Missing or Invalid**: Please enter your valid Google Gemini API Key in the sidebar or set the `GEMINI_API_KEY` environment variable to enable intelligent multilingual RAG responses.",
                     "is_grounded": False
                 }
 
@@ -72,11 +109,10 @@ class GeminiHelper:
         # Format brief conversation context if any
         history_str = ""
         if conversation_history and len(conversation_history) > 0:
-            # Take last 3 turns
             recent = conversation_history[-3:]
             for turn in recent:
-                role = turn.get("role", "user")
-                content = turn.get("content", "")
+                role = str(turn.get("role", "user"))
+                content = str(turn.get("content", ""))
                 history_str += f"{role.upper()}: {content}\n"
 
         system_instruction = (
@@ -108,19 +144,31 @@ class GeminiHelper:
                 )
             )
             
-            # Parse structured JSON response
-            raw_text = response.text
+            raw_text = response.text or "{}"
             data = json.loads(raw_text)
             return {
-                "detected_language": data.get("detected_language", "Unknown"),
-                "detected_language_code": data.get("detected_language_code", "en"),
-                "answer": data.get("answer", "No answer generated."),
-                "is_grounded": data.get("is_grounded", True)
+                "detected_language": str(data.get("detected_language", "Unknown")),
+                "detected_language_code": str(data.get("detected_language_code", "en")),
+                "answer": str(data.get("answer", "No answer generated.")),
+                "is_grounded": bool(data.get("is_grounded", True))
+            }
+        except APIError as api_err:
+            print(f"[Error] Gemini API Error during generation ({self.model_name}): {api_err}")
+            err_msg = str(api_err)
+            if "400" in err_msg or "INVALID_ARGUMENT" in err_msg or "API_KEY_INVALID" in err_msg:
+                user_friendly_msg = "⚠️ **Invalid API Key**: The provided Google Gemini API Key is invalid or expired. Please check your key in the sidebar and try again."
+            elif "429" in err_msg or "RESOURCE_EXHAUSTED" in err_msg or "quota" in err_msg.lower():
+                user_friendly_msg = "⚠️ **API Quota Exceeded**: You have temporarily exceeded your Gemini API rate limits. Please wait a moment before trying your request again."
+            else:
+                user_friendly_msg = f"⚠️ **API Communication Error**: Could not complete request due to a Gemini service error (`{err_msg[:120]}...`). Please try again."
+            return {
+                "detected_language": "English",
+                "detected_language_code": "en",
+                "answer": user_friendly_msg,
+                "is_grounded": False
             }
         except Exception as e:
-            # Fallback if structured schema generation failed or model choice fell back
-            print(f"Error during Gemini response generation ({self.model_name}): {e}")
-            # Try plain generation or secondary model (`gemini-2.5-flash` or `gemini-1.5-flash`) if first failed
+            print(f"[Warning] Structured schema generation failed ({e}). Attempting secondary fallback model...")
             try:
                 fallback_model = "gemini-2.5-flash" if self.model_name != "gemini-2.5-flash" else "gemini-1.5-flash"
                 fallback_prompt = (
@@ -137,17 +185,19 @@ class GeminiHelper:
                         response_mime_type="application/json"
                     )
                 )
-                data = json.loads(response.text)
+                raw_fallback = response.text or "{}"
+                data = json.loads(raw_fallback)
                 return {
-                    "detected_language": data.get("detected_language", "English"),
-                    "detected_language_code": data.get("detected_language_code", "en"),
-                    "answer": data.get("answer", response.text),
-                    "is_grounded": data.get("is_grounded", True)
+                    "detected_language": str(data.get("detected_language", "English")),
+                    "detected_language_code": str(data.get("detected_language_code", "en")),
+                    "answer": str(data.get("answer", response.text)),
+                    "is_grounded": bool(data.get("is_grounded", True))
                 }
             except Exception as inner_e:
+                print(f"[Error] Fallback generation also failed: {inner_e}")
                 return {
                     "detected_language": "English",
                     "detected_language_code": "en",
-                    "answer": f"⚠️ **Error generating response**: Could not communicate with Gemini API (`{e}`). Please verify your API key and network connection.",
+                    "answer": f"⚠️ **Error generating response**: Unable to complete request right now (`{inner_e}`). Please verify your API key and internet connection.",
                     "is_grounded": False
                 }

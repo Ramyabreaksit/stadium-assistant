@@ -245,7 +245,35 @@ div[data-testid="stChatMessage"]:nth-child(even) {
 
 .status-label {
     font-size: 0.8rem;
-    color: #94a3b8;
+    color: #cbd5e1;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+}
+
+/* Accessibility: High-Contrast Focus Indicators for Keyboard Navigation */
+button:focus,
+button:focus-visible,
+input:focus,
+input:focus-visible,
+textarea:focus,
+textarea:focus-visible,
+[role="button"]:focus,
+[role="button"]:focus-visible,
+summary:focus,
+summary:focus-visible,
+.stSelectbox div[data-baseweb="select"]:focus-within {
+    outline: 2px solid #00f5d4 !important;
+    outline-offset: 3px !important;
+    box-shadow: 0 0 0 4px rgba(0, 245, 212, 0.25) !important;
+}
+
+/* Accessibility: High-Contrast Text Adjustments */
+.stMarkdown p, .stMarkdown li {
+    color: #f1f5f9 !important;
+    line-height: 1.6;
+}
+
+div[data-testid="stSidebar"] .stMarkdown p,
+div[data-testid="stSidebar"] .stMarkdown span {
+    color: #e2e8f0 !important;
 }
